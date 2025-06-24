@@ -11,6 +11,7 @@ app.secret_key = os.urandom(24)
 periodic_thread = None
 periodic_stop_flag = threading.Event()
 last_error_time = None  # Simpan waktu error terakhir
+hotspot_active = False
 
 def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
     global periodic_stop_flag, last_error_time
@@ -45,12 +46,14 @@ def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
         time.sleep(interval)
 
 def monitor_connection():
-    global periodic_stop_flag, last_error_time
+    global periodic_stop_flag, last_error_time, hotspot_active
     while True:
-        if not wifi_manager.is_connected():
-            last_error_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            periodic_stop_flag.set()  # stop periodic jika ada
-            wifi_manager.enable_hotspot()
+        if not hotspot_active:
+            if not wifi_manager.is_connected():
+                last_error_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                periodic_stop_flag.set()
+                wifi_manager.enable_hotspot()
+                hotspot_active = True
         time.sleep(5)  # cek setiap 5 detik
 
 @app.route('/', methods=['GET', 'POST'])
@@ -68,8 +71,10 @@ def wifi_setup():
         ssid = request.form['ssid']
         password = request.form['password']
         success = wifi_manager.connect_wifi(ssid, password)
+        # Setelah berhasil connect WiFi
         if success:
             wifi_manager.disable_hotspot()
+            hotspot_active = False
             flash('WiFi connected successfully!', 'success')
             return redirect(url_for('run_program'))
         else:
