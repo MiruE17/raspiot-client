@@ -32,7 +32,7 @@ def enable_hotspot():
             'nmcli', 'device', 'wifi', 'hotspot',
             'ifname', 'wlan0',
             'ssid', 'RaspIoT',
-            'password', 'raspiot'
+            'password', 'rasp-iot'
         ])
         return True
     except subprocess.CalledProcessError:
