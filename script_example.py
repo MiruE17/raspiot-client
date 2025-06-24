@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import random
 
 def get_random_in_range(min_val, max_val, decimals):
