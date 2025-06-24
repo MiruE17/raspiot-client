@@ -9,6 +9,32 @@ import time
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
+periodic_thread = None
+periodic_stop_flag = threading.Event()
+
+def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
+    while not periodic_stop_flag.is_set():
+        try:
+            result = subprocess.check_output([script_path], timeout=10)
+            lines = result.decode().splitlines()
+            values = lines[0] if lines else ""
+            additional = {}
+            if len(lines) > 1:
+                for pair in lines[1].split(';'):
+                    if '=' in pair:
+                        k, v = pair.split('=', 1)
+                        additional[k.strip()] = v.strip()
+            payload = {
+                "api_key": api_token,
+                "scheme_id": scheme_id,
+                "values": values,
+                "additional_values": additional
+            }
+            requests.post(raspiot_url, json=payload, timeout=10)
+        except Exception as e:
+            print(f"Periodic send error: {e}")
+        time.sleep(interval)
+
 @app.route('/', methods=['GET', 'POST'])
 def wifi_setup():
     if wifi_manager.is_connected():
@@ -30,6 +56,7 @@ def wifi_setup():
 
 @app.route('/run', methods=['GET', 'POST'])
 def run_program():
+    global periodic_thread, periodic_stop_flag
     output = None
     api_token = scheme_id = script_path = mode = interval = ""
     additional = {}
@@ -81,12 +108,13 @@ def run_program():
                 if mode == "periodic":
                     try:
                         interval_sec = int(interval)
-                        t = threading.Thread(
+                        periodic_stop_flag.clear()
+                        periodic_thread = threading.Thread(
                             target=send_periodic,
                             args=(api_token, scheme_id, script_path, interval_sec, raspiot_url),
                             daemon=True
                         )
-                        t.start()
+                        periodic_thread.start()
                         flash('Pengiriman data periodik telah dimulai!', 'success')
                     except Exception as e:
                         flash(f'Gagal memulai mode periodik: {e}', 'danger')
@@ -99,6 +127,7 @@ def run_program():
             except Exception as e:
                 flash(f'Gagal kirim data: {e}', 'danger')
 
+    is_periodic_running = periodic_thread is not None and periodic_thread.is_alive()
     return render_template(
         'run_program.html',
         output=output,
@@ -107,31 +136,16 @@ def run_program():
         script_path=script_path,
         mode=mode,
         interval=interval,
-        additional=additional
+        additional=additional,
+        is_periodic_running=is_periodic_running
     )
 
-def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
-    while True:
-        try:
-            result = subprocess.check_output([script_path], timeout=10)
-            lines = result.decode().splitlines()
-            values = lines[0] if lines else ""
-            additional = {}
-            if len(lines) > 1:
-                for pair in lines[1].split(';'):
-                    if '=' in pair:
-                        k, v = pair.split('=', 1)
-                        additional[k.strip()] = v.strip()
-            payload = {
-                "api_key": api_token,
-                "scheme_id": scheme_id,
-                "values": values,
-                "additional_values": additional
-            }
-            requests.post(raspiot_url, json=payload, timeout=10)
-        except Exception as e:
-            print(f"Periodic send error: {e}")
-        time.sleep(interval)
+@app.route('/stop', methods=['POST'])
+def stop_periodic():
+    global periodic_stop_flag
+    periodic_stop_flag.set()
+    flash('Periodic sender stopped.', 'success')
+    return redirect(url_for('run_program'))
 
 if __name__ == '__main__':
     if not wifi_manager.is_connected():
