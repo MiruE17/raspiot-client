@@ -1,4 +1,5 @@
 import subprocess
+import time
 
 def scan_wifi():
     """Scan WiFi SSID di sekitar."""
@@ -25,21 +26,38 @@ def is_connected():
     except subprocess.CalledProcessError:
         return False
 
-def enable_hotspot():
-    """Aktifkan hotspot dengan nmcli."""
-    try:
-        subprocess.check_call([
-            'nmcli', 'device', 'wifi', 'hotspot',
-            'ifname', 'wlan0',
-            'ssid', 'RaspIoT',
-            'password', 'rasp-iot'
-        ])
-        subprocess.check_call([
-            'nmcli', 'connection', 'up', 'Hotspot'
-        ])
-        return True
-    except subprocess.CalledProcessError:
-        return False
+def enable_hotspot(max_retry=5, delay=2):
+    """Aktifkan hotspot dengan nmcli. Coba terus sampai berhasil atau mencapai max_retry."""
+    for attempt in range(max_retry):
+        try:
+            subprocess.check_call([
+                'nmcli', 'device', 'wifi', 'hotspot',
+                'ifname', 'wlan0',
+                'ssid', 'RaspIoT',
+                'password', 'rasp-iot'
+            ])
+            try:
+                subprocess.check_call([
+                    'nmcli', 'connection', 'up', 'Hotspot'
+                ])
+                return True
+            except subprocess.CalledProcessError:
+                # Jika gagal, coba matikan dan nyalakan ulang hotspot sekali lagi
+                subprocess.call(['nmcli', 'connection', 'down', 'Hotspot'])
+                subprocess.check_call([
+                    'nmcli', 'device', 'wifi', 'hotspot',
+                    'ifname', 'wlan0',
+                    'ssid', 'RaspIoT',
+                    'password', 'rasp-iot'
+                ])
+                subprocess.check_call([
+                    'nmcli', 'connection', 'up', 'Hotspot'
+                ])
+                return True
+        except subprocess.CalledProcessError:
+            time.sleep(delay)
+            continue
+    return False
 
 def disable_hotspot():
     """Nonaktifkan hotspot nmcli."""
