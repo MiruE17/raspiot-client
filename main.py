@@ -59,6 +59,7 @@ def monitor_connection():
 @app.route('/', methods=['GET', 'POST'])
 def wifi_setup():
     global hotspot_active
+    global last_error_time
     error_message = None
     if last_error_time:
         error_message = f"Pengiriman data sebelumnya gagal pada {last_error_time} karena koneksi hilang."
