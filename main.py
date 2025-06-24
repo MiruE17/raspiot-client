@@ -1,19 +1,25 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
-from app import wifi_manager
-import subprocess
-import requests
-import os
 import threading
 import time
+import os
+from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, flash
+from app import wifi_manager
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 periodic_thread = None
 periodic_stop_flag = threading.Event()
+last_error_time = None  # Simpan waktu error terakhir
 
 def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
+    global periodic_stop_flag, last_error_time
     while not periodic_stop_flag.is_set():
+        if not wifi_manager.is_connected():
+            last_error_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            periodic_stop_flag.set()
+            wifi_manager.enable_hotspot()
+            break
         try:
             result = subprocess.check_output([script_path], timeout=10)
             lines = result.decode().splitlines()
@@ -32,11 +38,29 @@ def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
             }
             requests.post(raspiot_url, json=payload, timeout=10)
         except Exception as e:
-            print(f"Periodic send error: {e}")
+            last_error_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            periodic_stop_flag.set()
+            wifi_manager.enable_hotspot()
+            break
         time.sleep(interval)
+
+def monitor_connection():
+    global periodic_stop_flag, last_error_time
+    while True:
+        if not wifi_manager.is_connected():
+            last_error_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            periodic_stop_flag.set()  # stop periodic jika ada
+            wifi_manager.enable_hotspot()
+        time.sleep(5)  # cek setiap 5 detik
 
 @app.route('/', methods=['GET', 'POST'])
 def wifi_setup():
+    global last_error_time
+    error_message = None
+    if last_error_time:
+        error_message = f"Pengiriman data sebelumnya gagal pada {last_error_time} karena koneksi hilang."
+        last_error_time = None  # Reset setelah ditampilkan
+
     if wifi_manager.is_connected():
         return redirect(url_for('run_program'))
 
@@ -52,11 +76,11 @@ def wifi_setup():
             flash('Failed to connect WiFi. Please try again.', 'danger')
 
     ssids = wifi_manager.scan_wifi()
-    return render_template('wifi_setup.html', ssids=ssids)
+    return render_template('wifi_setup.html', ssids=ssids, error_message=error_message)
 
 @app.route('/run', methods=['GET', 'POST'])
 def run_program():
-    global periodic_thread, periodic_stop_flag
+    global periodic_thread, periodic_stop_flag, last_error_time
     output = None
     api_token = scheme_id = script_path = mode = interval = ""
     additional = {}
@@ -128,6 +152,10 @@ def run_program():
                 flash(f'Gagal kirim data: {e}', 'danger')
 
     is_periodic_running = periodic_thread is not None and periodic_thread.is_alive()
+    error_message = None
+    if last_error_time:
+        error_message = f"Pengiriman data sebelumnya gagal pada {last_error_time} karena koneksi hilang."
+        last_error_time = None  # Reset setelah ditampilkan
     return render_template(
         'run_program.html',
         output=output,
@@ -137,7 +165,8 @@ def run_program():
         mode=mode,
         interval=interval,
         additional=additional,
-        is_periodic_running=is_periodic_running
+        is_periodic_running=is_periodic_running,
+        error_message=error_message
     )
 
 @app.route('/stop', methods=['POST'])
@@ -148,6 +177,7 @@ def stop_periodic():
     return redirect(url_for('run_program'))
 
 if __name__ == '__main__':
+    threading.Thread(target=monitor_connection, daemon=True).start()
     if not wifi_manager.is_connected():
         wifi_manager.enable_hotspot()
     app.run(host='0.0.0.0', port=80)

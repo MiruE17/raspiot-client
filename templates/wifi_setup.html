@@ -115,6 +115,11 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
+        {% if error_message %}
+            <div class="alert-danger">
+                {{ error_message }}
+            </div>
+        {% endif %}
         <form method="POST" action="/">
             <label>Pilih WiFi</label>
             <select name="ssid" required>

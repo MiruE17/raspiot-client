@@ -23,6 +23,11 @@
                 {% endfor %}
             {% endif %}
         {% endwith %}
+        {% if error_message %}
+            <div class="alert-danger">
+                {{ error_message }}
+            </div>
+        {% endif %}
         <form method="POST" action="/run">
             <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">API Token</label>
             <input type="text" name="api_token" value="{{ api_token }}" required class="block w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-gray-300" />
