@@ -76,7 +76,7 @@ def run_program():
                 "additional_values": additional
             }
             # Ganti URL berikut dengan endpoint server raspiot kamu
-            raspiot_url = "http://robortika.upnvj.ac.id:8080/api/data"
+            raspiot_url = "http://robotika.upnvj.ac.id:8080/api/data"
             try:
                 if mode == "periodic":
                     try:
