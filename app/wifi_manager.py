@@ -26,9 +26,24 @@ def is_connected():
         return False
 
 def enable_hotspot():
-    """Aktifkan hotspot dengan script bash."""
-    subprocess.call(['sudo', 'bash', './scripts/setup_hotspot.sh'])
+    """Aktifkan hotspot dengan nmcli."""
+    try:
+        subprocess.check_call([
+            'nmcli', 'device', 'wifi', 'hotspot',
+            'ifname', 'wlan0',
+            'ssid', 'RaspIoT',
+            'password', 'raspiot'
+        ])
+        return True
+    except subprocess.CalledProcessError:
+        return False
 
 def disable_hotspot():
-    """Nonaktifkan hotspot dengan script bash."""
-    subprocess.call(['sudo', 'bash', './scripts/disable_hotspot.sh'])
+    """Nonaktifkan hotspot nmcli."""
+    try:
+        subprocess.check_call([
+            'nmcli', 'connection', 'down', 'Hotspot'
+        ])
+        return True
+    except subprocess.CalledProcessError:
+        return False
