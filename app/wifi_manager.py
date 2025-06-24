@@ -34,6 +34,9 @@ def enable_hotspot():
             'ssid', 'RaspIoT',
             'password', 'rasp-iot'
         ])
+        subprocess.check_call([
+            'nmcli', 'connection', 'up', 'Hotspot'
+        ])
         return True
     except subprocess.CalledProcessError:
         return False
