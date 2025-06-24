@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RaspIoT Data Sender</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col items-center justify-center">
+    <div class="w-full max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mt-10">
+        <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-200 mb-6">
+            RaspIoT Data Sender
+        </h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 px-4 py-2 rounded {{ 'bg-green-100 text-green-800' if category == 'success' else 'bg-red-100 text-red-800' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <form method="POST" action="/run">
+            <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">API Token</label>
+            <input type="text" name="api_token" value="{{ api_token }}" required class="block w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-gray-300" />
+
+            <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">Scheme ID</label>
+            <input type="text" name="scheme_id" value="{{ scheme_id }}" required class="block w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-gray-300" />
+
+            <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">Path Program/Script</label>
+            <input type="text" name="script_path" value="{{ script_path }}" required class="block w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-gray-300" />
+
+            <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">Mode</label>
+            <select name="mode" class="block w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-gray-300">
+                <option value="once" {% if mode == 'once' %}selected{% endif %}>Sekali Jalan</option>
+                <option value="periodic" {% if mode == 'periodic' %}selected{% endif %}>Periodik</option>
+            </select>
+
+            <div id="interval-group" {% if mode != 'periodic' %}style="display:none;"{% endif %}>
+                <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">Interval (detik)</label>
+                <input type="number" name="interval" min="1" value="{{ interval }}" class="block w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-gray-300" />
+            </div>
+
+            <button type="submit" name="action" value="test" class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                Test Program
+            </button>
+        </form>
+
+        {% if output %}
+            <div class="mt-6">
+                <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">Output (values):</label>
+                <div class="bg-gray-100 dark:bg-gray-700 rounded p-3 font-mono text-sm text-gray-800 dark:text-gray-200 mb-2">
+                    {{ output }}
+                </div>
+                {% if additional %}
+                    <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">Additional Values:</label>
+                    <div class="bg-gray-100 dark:bg-gray-700 rounded p-3 font-mono text-sm text-gray-800 dark:text-gray-200 mb-2">
+                        {% for k, v in additional.items() %}
+                            {{ k }} = {{ v }}<br>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <form method="POST" action="/run">
+                    <input type="hidden" name="api_token" value="{{ api_token }}">
+                    <input type="hidden" name="scheme_id" value="{{ scheme_id }}">
+                    <input type="hidden" name="script_path" value="{{ script_path }}">
+                    <input type="hidden" name="mode" value="{{ mode }}">
+                    <input type="hidden" name="interval" value="{{ interval }}">
+                    <input type="hidden" name="values" value="{{ output }}">
+                    {% for k, v in additional.items() %}
+                        <input type="hidden" name="additional_{{ k }}" value="{{ v }}">
+                    {% endfor %}
+                    <button type="submit" name="action" value="send" class="w-full px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition mt-2">
+                        Kirim ke Server
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+    <script>
+        // Show/hide interval input
+        document.querySelector('select[name="mode"]').addEventListener('change', function() {
+            document.getElementById('interval-group').style.display = this.value === 'periodic' ? 'block' : 'none';
+        });
+    </script>
+</body>
+</html>

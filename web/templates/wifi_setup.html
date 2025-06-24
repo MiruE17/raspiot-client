@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RaspIoT WiFi Setup</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Tailwind CSS CDN (atau bisa import lokal jika ada) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col items-center justify-center">
+    <div class="w-full max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mt-10">
+        <h2 class="text-2xl font-semibold text-gray-700 dark:text-gray-200 mb-6">
+            RaspIoT WiFi Setup
+        </h2>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 px-4 py-2 rounded {{ 'bg-green-100 text-green-800' if category == 'success' else 'bg-red-100 text-red-800' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        <form method="POST" action="/">
+            <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">Pilih WiFi</label>
+            <select name="ssid" required class="block w-full mb-4 px-3 py-2 border rounded dark:bg-gray-700 dark:text-gray-300">
+                {% for ssid in ssids %}
+                    <option value="{{ ssid }}">{{ ssid }}</option>
+                {% endfor %}
+            </select>
+            <label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-400">Password</label>
+            <input type="password" name="password" required class="block w-full mb-6 px-3 py-2 border rounded dark:bg-gray-700 dark:text-gray-300" />
+            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                Connect
+            </button>
+        </form>
+        <div class="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
+            Hotspot aktif: <span class="font-semibold">RaspIoT</span> (password: <span class="font-mono">raspiot</span>)
+        </div>
+    </div>
+</body>
+</html>
