@@ -58,7 +58,7 @@ def monitor_connection():
 
 @app.route('/', methods=['GET', 'POST'])
 def wifi_setup():
-    global last_error_time
+    global hotspot_active
     error_message = None
     if last_error_time:
         error_message = f"Pengiriman data sebelumnya gagal pada {last_error_time} karena koneksi hilang."
@@ -71,10 +71,9 @@ def wifi_setup():
         ssid = request.form['ssid']
         password = request.form['password']
         success = wifi_manager.connect_wifi(ssid, password)
-        # Setelah berhasil connect WiFi
         if success:
             wifi_manager.disable_hotspot()
-            hotspot_active = False
+            hotspot_active = False  
             flash('WiFi connected successfully!', 'success')
             return redirect(url_for('run_program'))
         else:
