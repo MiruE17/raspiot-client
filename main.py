@@ -76,7 +76,7 @@ def wifi_setup():
             wifi_manager.disable_hotspot()
             hotspot_active = False  
             flash('WiFi connected successfully!', 'success')
-            return redirect(url_for('run_program'))
+            return redirect('http://raspiot/')
         else:
             flash('Failed to connect WiFi. Please try again.', 'danger')
 
