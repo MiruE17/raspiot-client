@@ -152,7 +152,7 @@ def run_program():
                 else:
                     resp = requests.post(raspiot_url, json=payload, timeout=10)
                     if resp.status_code == 201:
-                        flash('Data berhasil dikirim ke server!', 'success')
+                        flash(f'Data berhasil dikirim ke server! Response: {resp.text}', 'success')
                     else:
                         flash(f'Gagal kirim data: {resp.text}', 'danger')
             except Exception as e:
