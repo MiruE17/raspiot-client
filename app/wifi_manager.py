@@ -18,13 +18,17 @@ def connect_wifi(ssid, password):
     except subprocess.CalledProcessError:
         return False
 
-def is_connected():
-    """Cek apakah sudah terkoneksi ke internet."""
-    try:
-        subprocess.check_call(['ping', '-c', '1', '-W', '2', '8.8.8.8'])
-        return True
-    except subprocess.CalledProcessError:
-        return False
+def is_connected(retry=5, timeout=2):
+    """Cek koneksi internet dengan ping 8.8.8.8 beberapa kali."""
+    success = 0
+    for _ in range(retry):
+        try:
+            subprocess.check_call(['ping', '-c', '1', '-W', str(timeout), '8.8.8.8'],
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            success += 1
+        except subprocess.CalledProcessError:
+            pass
+    return success > 0
 
 def enable_hotspot(max_retry=5, delay=2):
     """Aktifkan hotspot dengan nmcli. Coba terus sampai berhasil atau mencapai max_retry."""
