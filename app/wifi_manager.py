@@ -34,7 +34,7 @@ def enable_hotspot(max_retry=5, delay=2):
                 'nmcli', 'device', 'wifi', 'hotspot',
                 'ifname', 'wlan0',
                 'ssid', 'RaspIoT',
-                'password', 'rasp-iot'
+                'password', '12345678'
             ])
             try:
                 subprocess.check_call([
