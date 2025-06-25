@@ -5,6 +5,7 @@ from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, flash
 from app import wifi_manager
 import subprocess
+import requests
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
