@@ -151,7 +151,7 @@ def run_program():
                         flash(f'Gagal memulai mode periodik: {e}', 'danger')
                 else:
                     resp = requests.post(raspiot_url, json=payload, timeout=10)
-                    if resp.status_code == 200:
+                    if resp.status_code == 201:
                         flash('Data berhasil dikirim ke server!', 'success')
                     else:
                         flash(f'Gagal kirim data: {resp.text}', 'danger')
