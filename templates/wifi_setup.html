@@ -5,9 +5,7 @@
     <title>RaspIoT WiFi Setup</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        *, *::before, *::after {
-            box-sizing: border-box;
-        }
+        *, *::before, *::after { box-sizing: border-box; }
         body {
             background: #111827;
             min-height: 100vh;
@@ -31,9 +29,7 @@
             justify-content: center;
             margin-bottom: 1.5rem;
         }
-        .logo img {
-            height: 4rem;
-        }
+        .logo img { height: 4rem; }
         h2 {
             font-size: 1.5rem;
             font-weight: 600;
@@ -48,7 +44,7 @@
             font-weight: 500;
             color: #9ca3af;
         }
-        select, input[type="password"] {
+        select, input[type="password"], input[type="text"] {
             display: block;
             width: 100%;
             margin-bottom: 1.5rem;
@@ -73,9 +69,7 @@
             transition: background 0.2s;
             font-family: inherit;
         }
-        button:hover {
-            background: #1d4ed8;
-        }
+        button:hover { background: #1d4ed8; }
         .alert-success {
             background: #064e3b;
             color: #6ee7b7;
@@ -98,6 +92,46 @@
         }
         .font-semibold { font-weight: 600; }
         .font-mono { font-family: monospace; }
+        .switch-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            gap: 0.5rem;
+        }
+        .switch-label {
+            color: #9ca3af;
+            font-size: 0.95rem;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 40px;
+            height: 22px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #374151;
+            transition: .4s;
+            border-radius: 22px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px; width: 16px;
+            left: 3px; bottom: 3px;
+            background-color: #fff;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2563eb;
+        }
+        input:checked + .slider:before {
+            transform: translateX(18px);
+        }
     </style>
 </head>
 <body>
@@ -121,19 +155,57 @@
             </div>
         {% endif %}
         <form method="POST" action="/">
-            <label>Pilih WiFi</label>
-            <select name="ssid" required>
-                {% for ssid in ssids %}
-                    <option value="{{ ssid }}">{{ ssid }}</option>
-                {% endfor %}
-            </select>
+            <div class="switch-container">
+                <span class="switch-label">Scan WiFi</span>
+                <label class="switch">
+                    <input type="checkbox" id="ssidModeSwitch">
+                    <span class="slider"></span>
+                </label>
+                <span class="switch-label">Manual SSID</span>
+            </div>
+            <div id="scan-ssid-group">
+                <label>Pilih WiFi</label>
+                <select name="ssid" id="ssid-select">
+                    {% for ssid in ssids %}
+                        <option value="{{ ssid }}">{{ ssid }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="manual-ssid-group" style="display:none;">
+                <label>SSID</label>
+                <input type="text" name="ssid_manual" id="ssid-manual" maxlength="64" />
+            </div>
             <label>Password</label>
             <input type="password" name="password" required />
             <button type="submit">Connect</button>
         </form>
         <div class="info">
-            Hotspot aktif: <span class="font-semibold">RaspIoT</span> (password: <span class="font-mono">raspiot</span>)
+            Hotspot aktif: <span class="font-semibold">RaspIoT</span> (password: <span class="font-mono">12345678</span>) <p>IP Static Hotspot Portal : 10.0.0.1</p>
         </div>
     </div>
+    <script>
+        // Toggle SSID input mode
+        const switchEl = document.getElementById('ssidModeSwitch');
+        const scanGroup = document.getElementById('scan-ssid-group');
+        const manualGroup = document.getElementById('manual-ssid-group');
+        const ssidSelect = document.getElementById('ssid-select');
+        const ssidManual = document.getElementById('ssid-manual');
+
+        switchEl.addEventListener('change', function() {
+            if (this.checked) {
+                scanGroup.style.display = 'none';
+                manualGroup.style.display = 'block';
+                ssidSelect.removeAttribute('name');
+                ssidManual.setAttribute('name', 'ssid');
+                ssidManual.required = true;
+            } else {
+                scanGroup.style.display = 'block';
+                manualGroup.style.display = 'none';
+                ssidManual.removeAttribute('name');
+                ssidManual.required = false;
+                ssidSelect.setAttribute('name', 'ssid');
+            }
+        });
+    </script>
 </body>
 </html>
