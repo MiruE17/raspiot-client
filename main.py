@@ -68,9 +68,11 @@ def monitor_connection():
     while True:
         if not hotspot_active:
             if not wifi_manager.is_connected():
+                # Saat koneksi hilang
                 last_error_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 periodic_stop_flag.set()
                 wifi_manager.enable_hotspot()
+                set_oled_status("System Offline, Connection Lost -- Hotspot Activated")
                 hotspot_active = True
         time.sleep(5)  # cek setiap 5 detik
 
@@ -90,11 +92,15 @@ def wifi_setup():
         ssid = request.form['ssid']
         password = request.form['password']
         success = wifi_manager.connect_wifi(ssid, password)
+        # Setelah sukses connect WiFi
         if success:
+            redirect('http://raspiot/')
+            time.sleep(1)
             wifi_manager.disable_hotspot()
             hotspot_active = False  
             flash('WiFi connected successfully!', 'success')
-            redirect('http://raspiot/')
+            set_oled_status("System Online")
+            return
         else:
             flash('Failed to connect WiFi. Please try again.', 'danger')
 
@@ -162,6 +168,7 @@ def run_program():
                             daemon=True
                         )
                         periodic_thread.start()
+                        set_oled_status("Running Periodic Data Transfer Job")  # <--- Tambahkan ini
                         flash('Pengiriman data periodik telah dimulai!', 'success')
                     except Exception as e:
                         flash(f'Gagal memulai mode periodik: {e}', 'danger')
@@ -367,4 +374,5 @@ if __name__ == '__main__':
     threading.Thread(target=monitor_connection, daemon=True).start()
     if not wifi_manager.is_connected():
         wifi_manager.enable_hotspot()
+        set_oled_status("System Offline -- Hotspot Active")
     app.run(host='0.0.0.0', port=80)
