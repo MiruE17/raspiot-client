@@ -199,10 +199,33 @@ def run_program():
         error_message=error_message
     )
 
+def get_last_journal_line():
+    try:
+        # Ambil 5 baris terakhir, cari yang bukan logo/favicon
+        output = subprocess.check_output(
+            ["journalctl", "-u", "raspiot-client.service", "-n", "5", "--no-pager"],
+            stderr=subprocess.DEVNULL
+        )
+        lines = output.decode(errors="ignore").strip().split('\n')
+        for line in reversed(lines):
+            if "logo" in line.lower() or "favicon" in line.lower():
+                continue
+            # Hapus timestamp jika ada
+            if "raspiot-client.service:" in line:
+                line = line.split("raspiot-client.service:")[-1].strip()
+            if line.strip():
+                return line
+        return ""
+    except Exception:
+        return ""
+
 @app.route('/stop', methods=['POST'])
 def stop_periodic():
-    global periodic_stop_flag
+    global periodic_stop_flag, periodic_thread
     periodic_stop_flag.set()
+    if periodic_thread and periodic_thread.is_alive():
+        periodic_thread.join(timeout=2)
+    set_oled_status("Periodic Job Stopped", hold=5)
     flash('Periodic sender stopped.', 'success')
     return redirect(url_for('run_program'))
 
@@ -290,19 +313,6 @@ def get_hostname():
         return socket.gethostname()
     except Exception:
         return "raspiot"
-
-def get_last_journal_line():
-    try:
-        output = subprocess.check_output(
-            ["journalctl", "-u", "raspiot-client.service", "-n", "1", "--no-pager"],
-            stderr=subprocess.DEVNULL
-        )
-        line = output.decode(errors="ignore").strip().split('\n')[-1]
-        if "raspiot-client.service:" in line:
-            line = line.split("raspiot-client.service:")[-1].strip()
-        return line
-    except Exception:
-        return ""
 
 def oled_updater():
     global oled_scroll_ap, oled_scroll_status, oled_status_app
