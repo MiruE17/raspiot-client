@@ -44,18 +44,16 @@ def init_oled():
 
 oled = init_oled()
 
-def draw_oled(ip, ap_label, ap_content, status_label, status_content, log_label, log_content, scroll_pos_ap=0, scroll_pos_status=0, scroll_pos_log=0):
+def draw_oled(ap_label, ap_content, ip, status_label, status_content, log_label, log_content, scroll_pos_ap=0, scroll_pos_status=0, scroll_pos_log=0):
     width = oled.width if oled else 128
     height = oled.height if oled else 64
     image = Image.new("1", (width, height))
     draw = ImageDraw.Draw(image)
-    # Baris 1: IP/Host
-    draw.text((0, 0), ip, font=font, fill=255)
 
-    # Baris 2: AP/SSID
+    # Baris 1: AP/SSID
     ap_label_width = int(font.getlength(ap_label)-4)
     ap_content_x = ap_label_width + 1
-    draw.text((0, 16), ap_label, font=font, fill=255)
+    draw.text((0, 0), ap_label, font=font, fill=255)
     ap_content_full = ap_content + " "
     ap_content_width = int(font.getlength(ap_content_full))
     content_area_width = width - ap_content_x
@@ -69,7 +67,10 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, log_label,
         ap_content_draw.text((x, 0), ap_content_full, font=font, fill=255)
     else:
         ap_content_draw.text((0, 0), ap_content, font=font, fill=255)
-    image.paste(ap_content_img, (ap_content_x, 16))
+    image.paste(ap_content_img, (ap_content_x, 0))
+
+    # Baris 2: IP/Host
+    draw.text((0, 16), ip, font=font, fill=255)
 
     # Baris 3: Status
     status_label_width = int(font.getlength(status_label)-4)
@@ -111,18 +112,18 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, log_label,
 
     return image
 
-def safe_draw_oled(ip, ap_label, ap_content, status_label, status_content, log_label, log_content, scroll_pos_ap=0, scroll_pos_status=0, scroll_pos_log=0):
+def safe_draw_oled(ap_label, ap_content, ip, status_label, status_content, log_label, log_content, scroll_pos_ap=0, scroll_pos_status=0, scroll_pos_log=0):
     global oled
     try:
         if oled is None:
             oled = init_oled()
         if oled is not None:
-            image = draw_oled(ip, ap_label, ap_content, status_label, status_content, log_label, log_content, scroll_pos_ap, scroll_pos_status, scroll_pos_log)
+            image = draw_oled(ap_label, ap_content, ip, status_label, status_content, log_label, log_content, scroll_pos_ap, scroll_pos_status, scroll_pos_log)
             oled.image(image)
             oled.show()
     except Exception as e:
         print("OLED error:", e)
-        oled = None  # Reset, agar nanti bisa dicoba inisialisasi ulang
+        oled = None
 
 def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
     global periodic_stop_flag, last_error_time
@@ -375,9 +376,9 @@ def oled_updater():
         ip_addr = get_ip()
         hostname = get_hostname()
         now = time.time()
-        # Baris 1: IP/Host
+        # Baris 2: IP/Host
         if ip_addr == "10.0.0.1":
-            baris1 = f"IP: {ip_addr}"
+            baris_ip = f"IP: {ip_addr}"
             display_mode = "ip"
             last_switch = now
         else:
@@ -387,7 +388,7 @@ def oled_updater():
             elif display_mode == "host" and now - last_switch > 5:
                 display_mode = "ip"
                 last_switch = now
-            baris1 = f"IP: {ip_addr}" if display_mode == "ip" else f"Host: {hostname}"
+            baris_ip = f"IP: {ip_addr}" if display_mode == "ip" else f"Host: {hostname}"
 
         ssid, mode = get_nm_status()
         ap_label = "AP: "
@@ -413,7 +414,7 @@ def oled_updater():
             last_log_content = logline
 
         safe_draw_oled(
-            baris1, ap_label, ap_content,
+            ap_label, ap_content, baris_ip,
             status_label, status_app,
             log_label, logline,
             oled_scroll_ap, oled_scroll_status, oled_scroll_log
