@@ -20,9 +20,9 @@ periodic_stop_flag = threading.Event()
 last_error_time = None  # Simpan waktu error terakhir
 hotspot_active = False
 
-# --- OLED SETUP (hotswap safe) ---
+# --- OLED SETUP (hotswap safe, 128x64) ---
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
-font_size = 10
+font_size = 12  # Lebih besar, karena tinggi layar 64px
 if os.path.exists(FONT_PATH):
     font = ImageFont.truetype(FONT_PATH, font_size)
 else:
@@ -55,7 +55,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     # --- Baris 2: AP/SSID ---
     ap_label_width = int(font.getlength(ap_label)-4)
     ap_content_x = ap_label_width + 1
-    draw.text((0, 11), ap_label, font=font, fill=255)
+    draw.text((0, 18), ap_label, font=font, fill=255)
     ap_content_full = ap_content + " "
     ap_content_width = int(font.getlength(ap_content_full))
     content_area_width = width - ap_content_x
@@ -69,12 +69,12 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
         ap_content_draw.text((x, 0), ap_content_full, font=font, fill=255)
     else:
         ap_content_draw.text((0, 0), ap_content, font=font, fill=255)
-    image.paste(ap_content_img, (ap_content_x, 11))
+    image.paste(ap_content_img, (ap_content_x, 18))
 
     # --- Baris 3: Status + log ---
     status_label_width = int(font.getlength(status_label)-4)
     status_content_x = status_label_width + 1
-    draw.text((0, 22), status_label, font=font, fill=255)
+    draw.text((0, 36), status_label, font=font, fill=255)
     status_content_full = status_content + " "
     status_content_width = int(font.getlength(status_content_full))
     status_area_width = width - status_content_x
@@ -88,7 +88,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
         status_content_draw.text((x, 0), status_content_full, font=font, fill=255)
     else:
         status_content_draw.text((0, 0), status_content, font=font, fill=255)
-    image.paste(status_content_img, (status_content_x, 22))
+    image.paste(status_content_img, (status_content_x, 36))
 
     return image
 
