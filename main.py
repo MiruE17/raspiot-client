@@ -211,8 +211,13 @@ def monitor_connection():
                     set_oled_status("Attempting to Reconnect - Scanning Wifi")
                     available_ssids = get_available_wifi_ssids()
                     saved_ssids = get_saved_wifi_ssids()
+                    set_oled_status(f"Saved: {list(saved_ssids)[:1]}")
+                    time.sleep(10)
+                    set_oled_status(f"Avail: {list(available_ssids)[:1]}")
+                    time.sleep(10)
                     candidates = saved_ssids & available_ssids
-                    set_oled_status(f"candidate : {candidates}")
+                    set_oled_status(f"Candidates: {list(candidates)[:1]}")
+                    time.sleep(10)
                     if candidates:
                         for ssid in candidates:
                             set_oled_status(f"Trying to Reconnect - Connecting to {ssid}")
