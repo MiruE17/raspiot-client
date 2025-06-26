@@ -206,7 +206,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     draw.text((0, 0), ip, font=font, fill=255)
 
     # --- Baris 2: AP/SSID ---
-    ap_label_width = int(font.getlength(ap_label)-2)
+    ap_label_width = int(font.getlength(ap_label)-4)
     ap_content_x = ap_label_width + 1
     draw.text((0, 11), ap_label, font=font, fill=255)
     ap_content_full = ap_content + " "
@@ -227,7 +227,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     image.paste(ap_content_img, (ap_content_x, 11))
 
     # --- Baris 3: Status + log ---
-    status_label_width = int(font.getlength(status_label)-2)
+    status_label_width = int(font.getlength(status_label)-4)
     status_content_x = status_label_width + 1
     draw.text((0, 22), status_label, font=font, fill=255)
     status_content_full = status_content + " "
@@ -327,8 +327,8 @@ def oled_updater():
             last_status_content = status_content
 
         draw_oled(ip, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
-        oled_scroll_ap += 4
-        oled_scroll_status += 4
+        oled_scroll_ap += 8
+        oled_scroll_status += 12
         time.sleep(0.001)
 
 # Jalankan thread OLED saat aplikasi start
@@ -338,6 +338,30 @@ threading.Thread(target=oled_updater, daemon=True).start()
 # globals()["oled_status_app"] = "Hotspot berjalan..."  # atau status lain sesuai event
 
 # ...lanjutkan kode Flask dan logic lain seperti biasa...
+
+def set_oled_status(new_status, hold=0):
+    globals()["oled_status_app"] = new_status
+    if hold > 0:
+        # Kembalikan ke status default setelah hold detik
+        def reset_status():
+            time.sleep(hold)
+            # Hanya reset jika status belum berubah
+            if globals().get("oled_status_app") == new_status:
+                update_status_by_condition()
+        threading.Thread(target=reset_status, daemon=True).start()
+
+def update_status_by_condition():
+    ip_addr = get_ip()
+    if ip_addr == "10.0.0.1":
+        if last_error_time:
+            set_oled_status("System Offline, Connection Lost -- Hotspot Activated")
+        else:
+            set_oled_status("System Offline -- Hotspot Active")
+    else:
+        if periodic_thread and periodic_thread.is_alive():
+            set_oled_status("Running Periodic Data Transfer Job")
+        else:
+            set_oled_status("System Online")
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_connection, daemon=True).start()
