@@ -209,7 +209,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     ap_label_width = int(font.getlength(ap_label))
     ap_content_x = ap_label_width + 1
     draw.text((0, 11), ap_label, font=font, fill=255)
-    ap_content_full = ap_content + "    "
+    ap_content_full = ap_content + " "
     ap_content_width = int(font.getlength(ap_content_full))
     content_area_width = oled.width - ap_content_x
 
@@ -230,7 +230,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     status_label_width = int(font.getlength(status_label))
     status_content_x = status_label_width + 1
     draw.text((0, 22), status_label, font=font, fill=255)
-    status_content_full = status_content + "    "
+    status_content_full = status_content + " "
     status_content_width = int(font.getlength(status_content_full))
     status_area_width = oled.width - status_content_x
 
