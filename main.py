@@ -157,6 +157,15 @@ def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
             break
         time.sleep(interval)
 
+def hotspot_has_clients():
+    # Cek apakah ada client yang terhubung ke hotspot (wlan0)
+    try:
+        output = subprocess.check_output(["iw", "dev", "wlan0", "station", "dump"], encoding="utf-8")
+        # Jika ada baris "Station", berarti ada client
+        return "Station" in output
+    except Exception:
+        return False
+
 def monitor_connection():
     global periodic_stop_flag, last_error_time, hotspot_active
     last_hotspot_check = time.time()
@@ -176,19 +185,23 @@ def monitor_connection():
                 hotspot_active = False
             else:
                 now = time.time()
-                if now - last_hotspot_check > 90:
-                    profiles = get_wifi_profiles()
-                    for profile in profiles:
-                        set_oled_status(f"Trying: {profile}")
-                        result = subprocess.run(
-                            ["nmcli", "con", "up", profile],
-                            capture_output=True, text=True
-                        )
-                        if result.returncode == 0:
-                            wifi_manager.disable_hotspot()
-                            set_oled_status("System Online")
-                            hotspot_active = False
-                            break
+                if now - last_hotspot_check > 60:
+                    # Cek apakah ada client di hotspot
+                    if hotspot_has_clients():
+                        set_oled_status("Hotspot in use, skip reconnect")
+                    else:
+                        profiles = get_wifi_profiles()
+                        for profile in profiles:
+                            set_oled_status(f"Trying: {profile}")
+                            result = subprocess.run(
+                                ["nmcli", "con", "up", profile],
+                                capture_output=True, text=True
+                            )
+                            if result.returncode == 0:
+                                wifi_manager.disable_hotspot()
+                                set_oled_status("Reconnection Success")
+                                hotspot_active = False
+                                break
                     last_hotspot_check = now
         time.sleep(5)
 
