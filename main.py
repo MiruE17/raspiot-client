@@ -36,7 +36,7 @@ def init_oled():
         while not i2c.try_lock():
             time.sleep(0.05)
         i2c.unlock()
-        oled = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c)
+        oled = adafruit_ssd1306.SSD1306_I2C(128, 64, i2c)
         return oled
     except Exception as e:
         print("OLED not detected:", e)
@@ -46,7 +46,7 @@ oled = init_oled()
 
 def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap=0, scroll_pos_status=0):
     width = oled.width if oled else 128
-    height = oled.height if oled else 32
+    height = oled.height if oled else 64
     image = Image.new("1", (width, height))
     draw = ImageDraw.Draw(image)
     # Baris 1: IP/Host
