@@ -225,6 +225,9 @@ def stop_periodic():
     periodic_stop_flag.set()
     if periodic_thread and periodic_thread.is_alive():
         periodic_thread.join(timeout=2)
+    # Pastikan variabel thread direset jika sudah mati
+    if periodic_thread and not periodic_thread.is_alive():
+        periodic_thread = None
     set_oled_status("Periodic Job Stopped", hold=5)
     flash('Periodic sender stopped.', 'success')
     return redirect(url_for('run_program'))
