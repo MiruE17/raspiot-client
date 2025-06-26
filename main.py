@@ -213,17 +213,17 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     ap_content_width = int(font.getlength(ap_content_full))
     content_area_width = oled.width - ap_content_x
 
-    # Buat image buffer khusus konten
+    # Buffer hanya sepanjang area konten
     ap_content_img = Image.new("1", (content_area_width, font_size+2))
     ap_content_draw = ImageDraw.Draw(ap_content_img)
     if ap_content_width > content_area_width:
+        # Scroll ulang setelah seluruh text keluar dari area konten (x < -ap_content_width)
         scroll_range = ap_content_width + content_area_width
         scroll_offset = scroll_pos_ap % scroll_range
         x = content_area_width - scroll_offset
         ap_content_draw.text((x, 0), ap_content_full, font=font, fill=255)
     else:
         ap_content_draw.text((0, 0), ap_content, font=font, fill=255)
-    # Paste ke image utama
     image.paste(ap_content_img, (ap_content_x, 11))
 
     # --- Baris 3: Status + log ---
