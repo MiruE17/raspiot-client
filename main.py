@@ -419,9 +419,9 @@ def oled_updater():
             log_label, logline,
             oled_scroll_ap, oled_scroll_status, oled_scroll_log
         )
-        oled_scroll_ap += 8
-        oled_scroll_status += 8
-        oled_scroll_log += 8
+        oled_scroll_ap += 12
+        oled_scroll_status += 16
+        oled_scroll_log += 20
         time.sleep(0.016)
 
 # Jalankan thread OLED saat aplikasi start
