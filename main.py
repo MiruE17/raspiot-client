@@ -378,7 +378,7 @@ def oled_updater():
         now = time.time()
         # Baris 2: IP/Host
         if ip_addr == "10.0.0.1":
-            baris_ip = f"IP: {ip_addr}"
+            baris_ip = f"IP:{ip_addr}"
             display_mode = "ip"
             last_switch = now
         else:
@@ -388,7 +388,7 @@ def oled_updater():
             elif display_mode == "host" and now - last_switch > 5:
                 display_mode = "ip"
                 last_switch = now
-            baris_ip = f"IP: {ip_addr}" if display_mode == "ip" else f"Host: {hostname}"
+            baris_ip = f"IP:{ip_addr}" if display_mode == "ip" else f"Host:{hostname}"
 
         ssid, mode = get_nm_status()
         ap_label = "AP: "
