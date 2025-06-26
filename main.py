@@ -157,12 +157,39 @@ def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
             break
         time.sleep(interval)
 
+def get_saved_wifi_ssids():
+    """Ambil daftar SSID dari koneksi Wi-Fi yang tersimpan"""
+    result = subprocess.run(["nmcli", "-t", "-f", "NAME,TYPE", "connection", "show"],
+                            capture_output=True, text=True)
+    saved_lines = result.stdout.strip().split("\n")
+    wifi_profiles = [line.split(":")[0] for line in saved_lines if ":wifi" in line]
+
+    ssids = set()
+    for profile in wifi_profiles:
+        result_ssid = subprocess.run(
+            ["nmcli", "-s", "-g", "802-11-wireless.ssid", "connection", "show", profile],
+            capture_output=True, text=True
+        )
+        ssid = result_ssid.stdout.strip()
+        if ssid:
+            ssids.add(ssid)
+    return ssids
+
+def get_available_wifi_ssids():
+    """Scan dan ambil SSID dari jaringan Wi-Fi yang tersedia saat ini"""
+    subprocess.run(["nmcli", "device", "wifi", "rescan"])
+    result = subprocess.run(["nmcli", "-t", "-f", "SSID", "device", "wifi", "list"],
+                            capture_output=True, text=True)
+    ssids = result.stdout.strip().split("\n")
+    return set(ssid for ssid in ssids if ssid)
+
 def monitor_connection():
     global periodic_stop_flag, last_error_time, hotspot_active
     last_hotspot_check = time.time()
     while True:
+        connected = wifi_manager.is_connected()
         if not hotspot_active:
-            if not wifi_manager.is_connected():
+            if not connected:
                 # Saat koneksi hilang
                 last_error_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 periodic_stop_flag.set()
@@ -170,15 +197,30 @@ def monitor_connection():
                 set_oled_status("System Offline, Connection Lost -- Hotspot Activated")
                 hotspot_active = True
         else:
-            # Jika hotspot aktif, setiap 2 menit coba connect ke jaringan yang dikenali
-            now = time.time()
-            if now - last_hotspot_check > 120:
-                if scan_and_connect_known():
-                    wifi_manager.disable_hotspot()
-                    set_oled_status("System Online")
-                    hotspot_active = False
-                last_hotspot_check = now
-        time.sleep(5)  # cek setiap 5 detik
+            # Jika hotspot aktif, cek apakah sudah terkoneksi internet
+            if connected:
+                wifi_manager.disable_hotspot()
+                set_oled_status("System Online")
+                hotspot_active = False
+            else:
+                # Jika belum terkoneksi, setiap 2 menit coba connect ke jaringan yang dikenali
+                now = time.time()
+                if now - last_hotspot_check > 60:
+                    set_oled_status("Attempting to Reconnect - Scanning Wifi")
+                    available_ssids = get_available_wifi_ssids()
+                    saved_ssids = get_saved_wifi_ssids()
+                    candidates = saved_ssids & available_ssids
+                    if candidates:
+                        for ssid in candidates:
+                            set_oled_status(f"Trying to Reconnect - Connecting to {ssid}")
+                            result = subprocess.run(["nmcli", "con", "up", ssid], capture_output=True, text=True)
+                            if result.returncode == 0:
+                                wifi_manager.disable_hotspot()
+                                set_oled_status("System Online")
+                                hotspot_active = False
+                                break
+                    last_hotspot_check = now
+        time.sleep(5)
 
 @app.route('/', methods=['GET', 'POST'])
 def wifi_setup():
@@ -460,32 +502,6 @@ def update_status_by_condition():
             set_oled_status("Running Periodic Data Transfer Job")
         else:
             set_oled_status("System Online")
-
-def get_known_connections():
-    # Ambil daftar SSID yang sudah pernah connect
-    try:
-        output = subprocess.check_output(['nmcli', '-t', '-f', 'NAME,TYPE', 'connection', 'show'], encoding='utf-8')
-        return [line.split(':')[0] for line in output.splitlines() if 'wifi' in line]
-    except Exception:
-        return []
-
-def scan_and_connect_known():
-    # Scan dan connect ke SSID yang dikenali
-    known = get_known_connections()
-    try:
-        output = subprocess.check_output(['nmcli', '-t', '-f', 'SSID', 'device', 'wifi', 'list'], encoding='utf-8')
-        available = [line.strip() for line in output.splitlines() if line.strip()]
-        for ssid in available:
-            if ssid in known and ssid != "":
-                set_oled_status(f"Trying to Reconnect - Connecting to {ssid}")
-                try:
-                    subprocess.check_call(['nmcli', 'device', 'wifi', 'connect', ssid])
-                    return True
-                except Exception:
-                    continue
-    except Exception:
-        pass
-    return False
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_connection, daemon=True).start()
