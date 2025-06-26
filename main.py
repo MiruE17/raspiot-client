@@ -310,17 +310,26 @@ def oled_updater():
     last_status_content = ""
     oled_scroll_ap = 0
     oled_scroll_status = 0
+    show_hostname = True
+    last_switch = time.time()
     while True:
-        ip = "IP: " + get_ip()
-        ssid, mode = get_nm_status()
         hostname = get_hostname()
         ip_addr = get_ip()
+        # Ganti tampilan baris 1 tiap 10 detik
+        now = time.time()
+        if now - last_switch > 10:
+            show_hostname = not show_hostname
+            last_switch = now
+        baris1 = f"Host: {hostname}" if show_hostname else f"IP: {ip_addr}"
+
+        ssid, mode = get_nm_status()
+        # Baris 2: selalu "AP:"
+        ap_label = "AP: "
         if ip_addr == "10.0.0.1":
-            ap_label = "AP: "
             ap_content = f"{ssid}/{get_hotspot_password()}"
         else:
-            ap_label = "AP/Hostname: "
-            ap_content = f"{ssid}/{hostname}"
+            ap_content = f"{ssid}" if ssid else "-"
+
         status_label = "Status: "
         status_app = globals().get("oled_status_app", "Standby")
         logline = get_last_journal_line()
@@ -333,18 +342,13 @@ def oled_updater():
             oled_scroll_status = 0
             last_status_content = status_content
 
-        draw_oled(ip, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
-        oled_scroll_ap += 8
-        oled_scroll_status += 12
-        time.sleep(0.001)
+        draw_oled(baris1, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
+        oled_scroll_ap += 1
+        oled_scroll_status += 1
+        time.sleep(0.07)
 
 # Jalankan thread OLED saat aplikasi start
 threading.Thread(target=oled_updater, daemon=True).start()
-
-# Di main.py, update status aplikasi dengan:
-# globals()["oled_status_app"] = "Hotspot berjalan..."  # atau status lain sesuai event
-
-# ...lanjutkan kode Flask dan logic lain seperti biasa...
 
 def set_oled_status(new_status, hold=0):
     globals()["oled_status_app"] = new_status
@@ -375,4 +379,6 @@ if __name__ == '__main__':
     if not wifi_manager.is_connected():
         wifi_manager.enable_hotspot()
         set_oled_status("System Offline -- Hotspot Active")
+    else:
+        update_status_by_condition() 
     app.run(host='0.0.0.0', port=80)
