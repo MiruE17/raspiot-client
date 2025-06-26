@@ -30,7 +30,12 @@ else:
 
 def init_oled():
     try:
+        # Selalu buat objek I2C baru!
         i2c = busio.I2C(board.SCL, board.SDA)
+        # Tunggu I2C ready (jika baru dicolok)
+        while not i2c.try_lock():
+            time.sleep(0.05)
+        i2c.unlock()
         oled = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c)
         return oled
     except Exception as e:
