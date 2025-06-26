@@ -159,6 +159,7 @@ def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
 
 def monitor_connection():
     global periodic_stop_flag, last_error_time, hotspot_active
+    last_hotspot_check = time.time()
     while True:
         if not hotspot_active:
             if not wifi_manager.is_connected():
@@ -168,6 +169,15 @@ def monitor_connection():
                 wifi_manager.enable_hotspot()
                 set_oled_status("System Offline, Connection Lost -- Hotspot Activated")
                 hotspot_active = True
+        else:
+            # Jika hotspot aktif, setiap 2 menit coba connect ke jaringan yang dikenali
+            now = time.time()
+            if now - last_hotspot_check > 120:
+                if scan_and_connect_known():
+                    wifi_manager.disable_hotspot()
+                    set_oled_status("System Online")
+                    hotspot_active = False
+                last_hotspot_check = now
         time.sleep(5)  # cek setiap 5 detik
 
 @app.route('/', methods=['GET', 'POST'])
@@ -450,6 +460,32 @@ def update_status_by_condition():
             set_oled_status("Running Periodic Data Transfer Job")
         else:
             set_oled_status("System Online")
+
+def get_known_connections():
+    # Ambil daftar SSID yang sudah pernah connect
+    try:
+        output = subprocess.check_output(['nmcli', '-t', '-f', 'NAME,TYPE', 'connection', 'show'], encoding='utf-8')
+        return [line.split(':')[0] for line in output.splitlines() if 'wifi' in line]
+    except Exception:
+        return []
+
+def scan_and_connect_known():
+    # Scan dan connect ke SSID yang dikenali
+    known = get_known_connections()
+    try:
+        output = subprocess.check_output(['nmcli', '-t', '-f', 'SSID', 'device', 'wifi', 'list'], encoding='utf-8')
+        available = [line.strip() for line in output.splitlines() if line.strip()]
+        for ssid in available:
+            if ssid in known and ssid != "":
+                set_oled_status(f"Trying to Reconnect - Connecting to {ssid}")
+                try:
+                    subprocess.check_call(['nmcli', 'device', 'wifi', 'connect', ssid])
+                    return True
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return False
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_connection, daemon=True).start()
