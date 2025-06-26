@@ -205,28 +205,35 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     # Baris 1: IP
     draw.text((0, 0), ip, font=font, fill=255)
     # Baris 2: AP/SSID
-    ap_label_width = font.getlength(ap_label)
+    ap_label_width = int(font.getlength(ap_label))
     ap_x = 0
     draw.text((ap_x, 11), ap_label, font=font, fill=255)
-    # Running text untuk konten AP/SSID jika panjang
     ap_content_full = ap_content + "    "
-    ap_content_width = font.getlength(ap_content_full)
+    ap_content_width = int(font.getlength(ap_content_full))
     ap_content_x = ap_x + ap_label_width + 4
     if ap_content_width > (oled.width - ap_content_x):
-        scroll_ap_x = ap_content_x - (scroll_pos_ap % (int(ap_content_width) + oled.width - ap_content_x))
-        draw.text((scroll_ap_x, 11), ap_content_full, font=font, fill=255)
+        scroll_range = ap_content_width + (oled.width - ap_content_x)
+        scroll_offset = oled_scroll_ap % scroll_range
+        x = ap_content_x - scroll_offset
+        # Hanya gambar jika x > ap_content_x - ap_content_width
+        if x > ap_content_x - ap_content_width:
+            draw.text((x, 11), ap_content_full, font=font, fill=255)
     else:
         draw.text((ap_content_x, 11), ap_content, font=font, fill=255)
+
     # Baris 3: Status + log
-    status_label_width = font.getlength(status_label)
+    status_label_width = int(font.getlength(status_label))
     status_x = 0
     draw.text((status_x, 22), status_label, font=font, fill=255)
     status_content_full = status_content + "    "
-    status_content_width = font.getlength(status_content_full)
+    status_content_width = int(font.getlength(status_content_full))
     status_content_x = status_x + status_label_width + 4
     if status_content_width > (oled.width - status_content_x):
-        scroll_status_x = status_content_x - (scroll_pos_status % (int(status_content_width) + oled.width - status_content_x))
-        draw.text((scroll_status_x, 22), status_content_full, font=font, fill=255)
+        scroll_range = status_content_width + (oled.width - status_content_x)
+        scroll_offset = oled_scroll_status % scroll_range
+        x = status_content_x - scroll_offset
+        if x > status_content_x - status_content_width:
+            draw.text((x, 22), status_content_full, font=font, fill=255)
     else:
         draw.text((status_content_x, 22), status_content, font=font, fill=255)
     oled.image(image)
