@@ -204,38 +204,47 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     draw = ImageDraw.Draw(image)
     # Baris 1: IP
     draw.text((0, 0), ip, font=font, fill=255)
-    # Baris 2: AP/SSID
+
+    # --- Baris 2: AP/SSID ---
     ap_label_width = int(font.getlength(ap_label))
-    ap_x = 0
-    draw.text((ap_x, 11), ap_label, font=font, fill=255)
+    ap_content_x = ap_label_width + 4
+    draw.text((0, 11), ap_label, font=font, fill=255)
     ap_content_full = ap_content + "    "
     ap_content_width = int(font.getlength(ap_content_full))
-    ap_content_x = ap_x + ap_label_width + 4
-    if ap_content_width > (oled.width - ap_content_x):
-        scroll_range = ap_content_width + (oled.width - ap_content_x)
-        scroll_offset = oled_scroll_ap % scroll_range
-        x = ap_content_x - scroll_offset
-        # Hanya gambar jika x > ap_content_x - ap_content_width
-        if x > ap_content_x - ap_content_width:
-            draw.text((x, 11), ap_content_full, font=font, fill=255)
-    else:
-        draw.text((ap_content_x, 11), ap_content, font=font, fill=255)
+    content_area_width = oled.width - ap_content_x
 
-    # Baris 3: Status + log
+    # Buat image buffer khusus konten
+    ap_content_img = Image.new("1", (content_area_width, font_size+2))
+    ap_content_draw = ImageDraw.Draw(ap_content_img)
+    if ap_content_width > content_area_width:
+        scroll_range = ap_content_width + content_area_width
+        scroll_offset = scroll_pos_ap % scroll_range
+        x = content_area_width - scroll_offset
+        ap_content_draw.text((x, 0), ap_content_full, font=font, fill=255)
+    else:
+        ap_content_draw.text((0, 0), ap_content, font=font, fill=255)
+    # Paste ke image utama
+    image.paste(ap_content_img, (ap_content_x, 11))
+
+    # --- Baris 3: Status + log ---
     status_label_width = int(font.getlength(status_label))
-    status_x = 0
-    draw.text((status_x, 22), status_label, font=font, fill=255)
+    status_content_x = status_label_width + 4
+    draw.text((0, 22), status_label, font=font, fill=255)
     status_content_full = status_content + "    "
     status_content_width = int(font.getlength(status_content_full))
-    status_content_x = status_x + status_label_width + 4
-    if status_content_width > (oled.width - status_content_x):
-        scroll_range = status_content_width + (oled.width - status_content_x)
-        scroll_offset = oled_scroll_status % scroll_range
-        x = status_content_x - scroll_offset
-        if x > status_content_x - status_content_width:
-            draw.text((x, 22), status_content_full, font=font, fill=255)
+    status_area_width = oled.width - status_content_x
+
+    status_content_img = Image.new("1", (status_area_width, font_size+2))
+    status_content_draw = ImageDraw.Draw(status_content_img)
+    if status_content_width > status_area_width:
+        scroll_range = status_content_width + status_area_width
+        scroll_offset = scroll_pos_status % scroll_range
+        x = status_area_width - scroll_offset
+        status_content_draw.text((x, 0), status_content_full, font=font, fill=255)
     else:
-        draw.text((status_content_x, 22), status_content, font=font, fill=255)
+        status_content_draw.text((0, 0), status_content, font=font, fill=255)
+    image.paste(status_content_img, (status_content_x, 22))
+
     oled.image(image)
     oled.show()
 
