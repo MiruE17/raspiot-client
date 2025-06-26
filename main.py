@@ -22,7 +22,7 @@ hotspot_active = False
 
 # --- OLED SETUP (hotswap safe, 128x64) ---
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
-font_size = 12  # Lebih besar, karena tinggi layar 64px
+font_size = 11  # Ubah ke 11 agar proporsional untuk 128x64
 if os.path.exists(FONT_PATH):
     font = ImageFont.truetype(FONT_PATH, font_size)
 else:
@@ -44,7 +44,7 @@ def init_oled():
 
 oled = init_oled()
 
-def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap=0, scroll_pos_status=0):
+def draw_oled(ip, ap_label, ap_content, status_label, status_content, log_label, log_content, scroll_pos_ap=0, scroll_pos_status=0, scroll_pos_log=0):
     width = oled.width if oled else 128
     height = oled.height if oled else 64
     image = Image.new("1", (width, height))
@@ -52,10 +52,10 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     # Baris 1: IP/Host
     draw.text((0, 0), ip, font=font, fill=255)
 
-    # --- Baris 2: AP/SSID ---
+    # Baris 2: AP/SSID
     ap_label_width = int(font.getlength(ap_label)-4)
     ap_content_x = ap_label_width + 1
-    draw.text((0, 18), ap_label, font=font, fill=255)
+    draw.text((0, 16), ap_label, font=font, fill=255)
     ap_content_full = ap_content + " "
     ap_content_width = int(font.getlength(ap_content_full))
     content_area_width = width - ap_content_x
@@ -69,12 +69,12 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
         ap_content_draw.text((x, 0), ap_content_full, font=font, fill=255)
     else:
         ap_content_draw.text((0, 0), ap_content, font=font, fill=255)
-    image.paste(ap_content_img, (ap_content_x, 18))
+    image.paste(ap_content_img, (ap_content_x, 16))
 
-    # --- Baris 3: Status + log ---
+    # Baris 3: Status
     status_label_width = int(font.getlength(status_label)-4)
     status_content_x = status_label_width + 1
-    draw.text((0, 36), status_label, font=font, fill=255)
+    draw.text((0, 32), status_label, font=font, fill=255)
     status_content_full = status_content + " "
     status_content_width = int(font.getlength(status_content_full))
     status_area_width = width - status_content_x
@@ -88,17 +88,36 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
         status_content_draw.text((x, 0), status_content_full, font=font, fill=255)
     else:
         status_content_draw.text((0, 0), status_content, font=font, fill=255)
-    image.paste(status_content_img, (status_content_x, 36))
+    image.paste(status_content_img, (status_content_x, 32))
+
+    # Baris 4: Log
+    log_label_width = int(font.getlength(log_label)-4)
+    log_content_x = log_label_width + 1
+    draw.text((0, 48), log_label, font=font, fill=255)
+    log_content_full = log_content + " "
+    log_content_width = int(font.getlength(log_content_full))
+    log_area_width = width - log_content_x
+
+    log_content_img = Image.new("1", (log_area_width, font_size+2))
+    log_content_draw = ImageDraw.Draw(log_content_img)
+    if log_content_width > log_area_width:
+        scroll_range = log_content_width + log_area_width
+        scroll_offset = scroll_pos_log % scroll_range
+        x = log_area_width - scroll_offset
+        log_content_draw.text((x, 0), log_content_full, font=font, fill=255)
+    else:
+        log_content_draw.text((0, 0), log_content, font=font, fill=255)
+    image.paste(log_content_img, (log_content_x, 48))
 
     return image
 
-def safe_draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap=0, scroll_pos_status=0):
+def safe_draw_oled(ip, ap_label, ap_content, status_label, status_content, log_label, log_content, scroll_pos_ap=0, scroll_pos_status=0, scroll_pos_log=0):
     global oled
     try:
         if oled is None:
             oled = init_oled()
         if oled is not None:
-            image = draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap, scroll_pos_status)
+            image = draw_oled(ip, ap_label, ap_content, status_label, status_content, log_label, log_content, scroll_pos_ap, scroll_pos_status, scroll_pos_log)
             oled.image(image)
             oled.show()
     except Exception as e:
@@ -343,18 +362,20 @@ def get_hostname():
         return "raspiot"
 
 def oled_updater():
-    global oled_scroll_ap, oled_scroll_status, oled_status_app
+    global oled_scroll_ap, oled_scroll_status, oled_scroll_log, oled_status_app
     last_ap_content = ""
     last_status_content = ""
+    last_log_content = ""
     oled_scroll_ap = 0
     oled_scroll_status = 0
+    oled_scroll_log = 0
     display_mode = "ip"
     last_switch = time.time()
     while True:
         ip_addr = get_ip()
         hostname = get_hostname()
         now = time.time()
-        # Jika hotspot (ip 10.0.0.1), hanya tampilkan IP
+        # Baris 1: IP/Host
         if ip_addr == "10.0.0.1":
             baris1 = f"IP: {ip_addr}"
             display_mode = "ip"
@@ -377,19 +398,29 @@ def oled_updater():
 
         status_label = "Status: "
         status_app = globals().get("oled_status_app", "Standby")
+
+        log_label = "Log: "
         logline = get_last_journal_line()
-        status_content = f"{status_app} | {logline}" if logline else status_app
 
         if ap_content != last_ap_content:
             oled_scroll_ap = 0
             last_ap_content = ap_content
-        if status_content != last_status_content:
+        if status_app != last_status_content:
             oled_scroll_status = 0
-            last_status_content = status_content
+            last_status_content = status_app
+        if logline != last_log_content:
+            oled_scroll_log = 0
+            last_log_content = logline
 
-        safe_draw_oled(baris1, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
+        safe_draw_oled(
+            baris1, ap_label, ap_content,
+            status_label, status_app,
+            log_label, logline,
+            oled_scroll_ap, oled_scroll_status, oled_scroll_log
+        )
         oled_scroll_ap += 8
-        oled_scroll_status += 20
+        oled_scroll_status += 8
+        oled_scroll_log += 8
         time.sleep(0.016)
 
 # Jalankan thread OLED saat aplikasi start
