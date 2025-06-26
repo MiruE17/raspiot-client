@@ -207,7 +207,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
 
     # --- Baris 2: AP/SSID ---
     ap_label_width = int(font.getlength(ap_label))
-    ap_content_x = ap_label_width + 4
+    ap_content_x = ap_label_width + 1
     draw.text((0, 11), ap_label, font=font, fill=255)
     ap_content_full = ap_content + "    "
     ap_content_width = int(font.getlength(ap_content_full))
@@ -228,7 +228,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
 
     # --- Baris 3: Status + log ---
     status_label_width = int(font.getlength(status_label))
-    status_content_x = status_label_width + 4
+    status_content_x = status_label_width + 1
     draw.text((0, 22), status_label, font=font, fill=255)
     status_content_full = status_content + "    "
     status_content_width = int(font.getlength(status_content_full))
@@ -329,9 +329,9 @@ def oled_updater():
             last_status_content = status_content
 
         draw_oled(ip, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
-        oled_scroll_ap += 1
-        oled_scroll_status += 1
-        time.sleep(0.07)
+        oled_scroll_ap += 4
+        oled_scroll_status += 4
+        time.sleep(0.001)
 
 # Jalankan thread OLED saat aplikasi start
 threading.Thread(target=oled_updater, daemon=True).start()
