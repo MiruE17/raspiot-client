@@ -310,29 +310,27 @@ def oled_updater():
     last_status_content = ""
     oled_scroll_ap = 0
     oled_scroll_status = 0
-    show_hostname = False
+    display_mode = "ip"
     last_switch = time.time()
-    hostname = get_hostname()
-    ip_addr = get_ip()
-    display_mode = "ip"  # "ip" or "host"
     while True:
         ip_addr = get_ip()
+        hostname = get_hostname()
+        now = time.time()
         # Jika hotspot (ip 10.0.0.1), hanya tampilkan IP
         if ip_addr == "10.0.0.1":
             baris1 = f"IP: {ip_addr}"
             display_mode = "ip"
-            last_switch = time.time()
+            last_switch = now
         else:
-            now = time.time()
             if display_mode == "ip" and now - last_switch > 10:
                 display_mode = "host"
                 last_switch = now
             elif display_mode == "host" and now - last_switch > 5:
                 display_mode = "ip"
                 last_switch = now
-            baris1 = f"IP: {ip_addr}" if display_mode == "ip" else f"Host: {get_hostname()}"
+            baris1 = f"IP: {ip_addr}" if display_mode == "ip" else f"Host: {hostname}"
+
         ssid, mode = get_nm_status()
-        # Baris 2: selalu "AP:"
         ap_label = "AP: "
         if ip_addr == "10.0.0.1":
             ap_content = f"{ssid}/{get_hotspot_password()}"
@@ -353,8 +351,8 @@ def oled_updater():
 
         draw_oled(baris1, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
         oled_scroll_ap += 8
-        oled_scroll_status += 24
-        time.sleep(0.001)
+        oled_scroll_status += 20
+        time.sleep(0.016)
 
 # Jalankan thread OLED saat aplikasi start
 threading.Thread(target=oled_updater, daemon=True).start()
