@@ -13,12 +13,15 @@ def scan_wifi():
 def connect_wifi(ssid, password):
     """Connect ke WiFi dengan nmcli."""
     try:
-        subprocess.check_call(['nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password])
+        if password:
+            subprocess.check_call(['nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password])
+        else:
+            subprocess.check_call(['nmcli', 'dev', 'wifi', 'connect', ssid])
         return True
     except subprocess.CalledProcessError:
         return False
 
-def is_connected(retry=5, timeout=2):
+def is_connected(retry=20, timeout=1):
     """Cek koneksi internet dengan ping 8.8.8.8 beberapa kali."""
     success = 0
     for _ in range(retry):

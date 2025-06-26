@@ -6,6 +6,11 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from app import wifi_manager
 import subprocess
 import requests
+import socket
+import board
+import busio
+import adafruit_ssd1306
+from PIL import Image, ImageDraw, ImageFont
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
@@ -14,6 +19,17 @@ periodic_thread = None
 periodic_stop_flag = threading.Event()
 last_error_time = None  # Simpan waktu error terakhir
 hotspot_active = False
+
+# --- OLED SETUP ---
+FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
+font_size = 10
+if os.path.exists(FONT_PATH):
+    font = ImageFont.truetype(FONT_PATH, font_size)
+else:
+    font = ImageFont.load_default()
+
+i2c = busio.I2C(board.SCL, board.SDA)
+oled = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c)
 
 def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
     global periodic_stop_flag, last_error_time
@@ -182,6 +198,132 @@ def stop_periodic():
     periodic_stop_flag.set()
     flash('Periodic sender stopped.', 'success')
     return redirect(url_for('run_program'))
+
+def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap=0, scroll_pos_status=0):
+    image = Image.new("1", (oled.width, oled.height))
+    draw = ImageDraw.Draw(image)
+    # Baris 1: IP
+    draw.text((0, 0), ip, font=font, fill=255)
+    # Baris 2: AP/SSID
+    ap_label_width = font.getlength(ap_label)
+    ap_x = 0
+    draw.text((ap_x, 11), ap_label, font=font, fill=255)
+    # Running text untuk konten AP/SSID jika panjang
+    ap_content_full = ap_content + "    "
+    ap_content_width = font.getlength(ap_content_full)
+    ap_content_x = ap_x + ap_label_width + 4
+    if ap_content_width > (oled.width - ap_content_x):
+        scroll_ap_x = ap_content_x - (scroll_pos_ap % (int(ap_content_width) + oled.width - ap_content_x))
+        draw.text((scroll_ap_x, 11), ap_content_full, font=font, fill=255)
+    else:
+        draw.text((ap_content_x, 11), ap_content, font=font, fill=255)
+    # Baris 3: Status + log
+    status_label_width = font.getlength(status_label)
+    status_x = 0
+    draw.text((status_x, 22), status_label, font=font, fill=255)
+    status_content_full = status_content + "    "
+    status_content_width = font.getlength(status_content_full)
+    status_content_x = status_x + status_label_width + 4
+    if status_content_width > (oled.width - status_content_x):
+        scroll_status_x = status_content_x - (scroll_pos_status % (int(status_content_width) + oled.width - status_content_x))
+        draw.text((scroll_status_x, 22), status_content_full, font=font, fill=255)
+    else:
+        draw.text((status_content_x, 22), status_content, font=font, fill=255)
+    oled.image(image)
+    oled.show()
+
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('8.8.8.8', 80))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = 'No IP'
+    finally:
+        s.close()
+    return ip
+
+def get_nm_status():
+    try:
+        out = subprocess.check_output(['nmcli', '-t', '-f', 'active,ssid,mode', 'dev', 'wifi'], encoding='utf-8')
+        for line in out.splitlines():
+            if line.startswith('yes:'):
+                parts = line.strip().split(':')
+                if len(parts) >= 3:
+                    return parts[1], parts[2]  # ssid, mode
+    except Exception:
+        pass
+    return None, None
+
+def get_hotspot_password():
+    try:
+        out = subprocess.check_output(['nmcli', '-s', '-g', '802-11-wireless-security.psk', 'connection', 'show', 'Hotspot'], encoding='utf-8')
+        return out.strip()
+    except Exception:
+        return "raspiot"
+
+def get_hostname():
+    try:
+        return socket.gethostname()
+    except Exception:
+        return "raspiot"
+
+def get_last_journal_line():
+    try:
+        output = subprocess.check_output(
+            ["journalctl", "-u", "raspiot-client.service", "-n", "1", "--no-pager"],
+            stderr=subprocess.DEVNULL
+        )
+        line = output.decode(errors="ignore").strip().split('\n')[-1]
+        if "raspiot-client.service:" in line:
+            line = line.split("raspiot-client.service:")[-1].strip()
+        return line
+    except Exception:
+        return ""
+
+def oled_updater():
+    global oled_scroll_ap, oled_scroll_status, oled_status_app
+    last_ap_content = ""
+    last_status_content = ""
+    oled_scroll_ap = 0
+    oled_scroll_status = 0
+    while True:
+        ip = "IP: " + get_ip()
+        ssid, mode = get_nm_status()
+        hostname = get_hostname()
+        if mode == "ap":
+            ap_label = "AP: "
+            ap_content = f"{ssid}/{get_hotspot_password()}"
+        elif ssid:
+            ap_label = "AP/Hostname: "
+            ap_content = f"{ssid}/{hostname}"
+        else:
+            ap_label = "AP: "
+            ap_content = "-"
+        status_label = "Status: "
+        status_app = globals().get("oled_status_app", "Standby")
+        logline = get_last_journal_line()
+        status_content = f"{status_app} | {logline}" if logline else status_app
+
+        if ap_content != last_ap_content:
+            oled_scroll_ap = 0
+            last_ap_content = ap_content
+        if status_content != last_status_content:
+            oled_scroll_status = 0
+            last_status_content = status_content
+
+        draw_oled(ip, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
+        oled_scroll_ap += 1
+        oled_scroll_status += 1
+        time.sleep(0.07)
+
+# Jalankan thread OLED saat aplikasi start
+threading.Thread(target=oled_updater, daemon=True).start()
+
+# Di main.py, update status aplikasi dengan:
+# globals()["oled_status_app"] = "Hotspot berjalan..."  # atau status lain sesuai event
+
+# ...lanjutkan kode Flask dan logic lain seperti biasa...
 
 if __name__ == '__main__':
     threading.Thread(target=monitor_connection, daemon=True).start()
