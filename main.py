@@ -176,7 +176,7 @@ def monitor_connection():
                 hotspot_active = False
             else:
                 now = time.time()
-                if now - last_hotspot_check > 10:
+                if now - last_hotspot_check > 90:
                     profiles = get_wifi_profiles()
                     for profile in profiles:
                         set_oled_status(f"Trying: {profile}")
