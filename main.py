@@ -178,8 +178,10 @@ def get_saved_wifi_ssids():
 def get_available_wifi_ssids():
     """Scan dan ambil SSID dari jaringan Wi-Fi yang tersedia saat ini"""
     subprocess.run(["nmcli", "device", "wifi", "rescan"])
+    set_oled_status("Getting Available SSID")
     result = subprocess.run(["nmcli", "-t", "-f", "SSID", "device", "wifi", "list"],
                             capture_output=True, text=True)
+    set_oled_status("SSID Collected")
     ssids = result.stdout.strip().split("\n")
     return set(ssid for ssid in ssids if ssid)
 
@@ -210,6 +212,7 @@ def monitor_connection():
                     available_ssids = get_available_wifi_ssids()
                     saved_ssids = get_saved_wifi_ssids()
                     candidates = saved_ssids & available_ssids
+                    set_oled_status(f"candidate : {candidates}")
                     if candidates:
                         for ssid in candidates:
                             set_oled_status(f"Trying to Reconnect - Connecting to {ssid}")
@@ -220,6 +223,8 @@ def monitor_connection():
                                 hotspot_active = False
                                 break
                     last_hotspot_check = now
+                else:
+                    set_oled_status("System Offline, Connection Lost -- Hotspot Activated")
         time.sleep(5)
 
 @app.route('/', methods=['GET', 'POST'])
