@@ -20,7 +20,7 @@ periodic_stop_flag = threading.Event()
 last_error_time = None  # Simpan waktu error terakhir
 hotspot_active = False
 
-# --- OLED SETUP ---
+# --- OLED SETUP (hotswap safe) ---
 FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"
 font_size = 10
 if os.path.exists(FONT_PATH):
@@ -28,8 +28,77 @@ if os.path.exists(FONT_PATH):
 else:
     font = ImageFont.load_default()
 
-i2c = busio.I2C(board.SCL, board.SDA)
-oled = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c)
+def init_oled():
+    try:
+        i2c = busio.I2C(board.SCL, board.SDA)
+        oled = adafruit_ssd1306.SSD1306_I2C(128, 32, i2c)
+        return oled
+    except Exception as e:
+        print("OLED not detected:", e)
+        return None
+
+oled = init_oled()
+
+def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap=0, scroll_pos_status=0):
+    width = oled.width if oled else 128
+    height = oled.height if oled else 32
+    image = Image.new("1", (width, height))
+    draw = ImageDraw.Draw(image)
+    # Baris 1: IP/Host
+    draw.text((0, 0), ip, font=font, fill=255)
+
+    # --- Baris 2: AP/SSID ---
+    ap_label_width = int(font.getlength(ap_label)-4)
+    ap_content_x = ap_label_width + 1
+    draw.text((0, 11), ap_label, font=font, fill=255)
+    ap_content_full = ap_content + " "
+    ap_content_width = int(font.getlength(ap_content_full))
+    content_area_width = width - ap_content_x
+
+    ap_content_img = Image.new("1", (content_area_width, font_size+2))
+    ap_content_draw = ImageDraw.Draw(ap_content_img)
+    if ap_content_width > content_area_width:
+        scroll_range = ap_content_width + content_area_width
+        scroll_offset = scroll_pos_ap % scroll_range
+        x = content_area_width - scroll_offset
+        ap_content_draw.text((x, 0), ap_content_full, font=font, fill=255)
+    else:
+        ap_content_draw.text((0, 0), ap_content, font=font, fill=255)
+    image.paste(ap_content_img, (ap_content_x, 11))
+
+    # --- Baris 3: Status + log ---
+    status_label_width = int(font.getlength(status_label)-4)
+    status_content_x = status_label_width + 1
+    draw.text((0, 22), status_label, font=font, fill=255)
+    status_content_full = status_content + " "
+    status_content_width = int(font.getlength(status_content_full))
+    status_area_width = width - status_content_x
+
+    status_content_img = Image.new("1", (status_area_width, font_size+2))
+    status_content_draw = ImageDraw.Draw(status_content_img)
+    if status_content_width > status_area_width:
+        scroll_range = status_content_width + status_area_width
+        scroll_offset = scroll_pos_status % scroll_range
+        x = status_area_width - scroll_offset
+        status_content_draw.text((x, 0), status_content_full, font=font, fill=255)
+    else:
+        status_content_draw.text((0, 0), status_content, font=font, fill=255)
+    image.paste(status_content_img, (status_content_x, 22))
+
+    return image
+
+def safe_draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap=0, scroll_pos_status=0):
+    global oled
+    try:
+        if oled is None:
+            oled = init_oled()
+        if oled is not None:
+            image = draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap, scroll_pos_status)
+            oled.image(image)
+            oled.show()
+    except Exception as e:
+        print("OLED error:", e)
+        oled = None  # Reset, agar nanti bisa dicoba inisialisasi ulang
 
 def send_periodic(api_token, scheme_id, script_path, interval, raspiot_url):
     global periodic_stop_flag, last_error_time
@@ -168,7 +237,7 @@ def run_program():
                             daemon=True
                         )
                         periodic_thread.start()
-                        set_oled_status("Running Periodic Data Transfer Job")  # <--- Tambahkan ini
+                        set_oled_status("Running Periodic Data Transfer Job")
                         flash('Pengiriman data periodik telah dimulai!', 'success')
                     except Exception as e:
                         flash(f'Gagal memulai mode periodik: {e}', 'danger')
@@ -231,55 +300,6 @@ def stop_periodic():
     set_oled_status("Periodic Job Stopped", hold=5)
     flash('Periodic sender stopped.', 'success')
     return redirect(url_for('run_program'))
-
-def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos_ap=0, scroll_pos_status=0):
-    image = Image.new("1", (oled.width, oled.height))
-    draw = ImageDraw.Draw(image)
-    # Baris 1: IP
-    draw.text((0, 0), ip, font=font, fill=255)
-
-    # --- Baris 2: AP/SSID ---
-    ap_label_width = int(font.getlength(ap_label)-4)
-    ap_content_x = ap_label_width + 1
-    draw.text((0, 11), ap_label, font=font, fill=255)
-    ap_content_full = ap_content + " "
-    ap_content_width = int(font.getlength(ap_content_full))
-    content_area_width = oled.width - ap_content_x
-
-    # Buffer hanya sepanjang area konten
-    ap_content_img = Image.new("1", (content_area_width, font_size+2))
-    ap_content_draw = ImageDraw.Draw(ap_content_img)
-    if ap_content_width > content_area_width:
-        # Scroll ulang setelah seluruh text keluar dari area konten (x < -ap_content_width)
-        scroll_range = ap_content_width + content_area_width
-        scroll_offset = scroll_pos_ap % scroll_range
-        x = content_area_width - scroll_offset
-        ap_content_draw.text((x, 0), ap_content_full, font=font, fill=255)
-    else:
-        ap_content_draw.text((0, 0), ap_content, font=font, fill=255)
-    image.paste(ap_content_img, (ap_content_x, 11))
-
-    # --- Baris 3: Status + log ---
-    status_label_width = int(font.getlength(status_label)-4)
-    status_content_x = status_label_width + 1
-    draw.text((0, 22), status_label, font=font, fill=255)
-    status_content_full = status_content + " "
-    status_content_width = int(font.getlength(status_content_full))
-    status_area_width = oled.width - status_content_x
-
-    status_content_img = Image.new("1", (status_area_width, font_size+2))
-    status_content_draw = ImageDraw.Draw(status_content_img)
-    if status_content_width > status_area_width:
-        scroll_range = status_content_width + status_area_width
-        scroll_offset = scroll_pos_status % scroll_range
-        x = status_area_width - scroll_offset
-        status_content_draw.text((x, 0), status_content_full, font=font, fill=255)
-    else:
-        status_content_draw.text((0, 0), status_content, font=font, fill=255)
-    image.paste(status_content_img, (status_content_x, 22))
-
-    oled.image(image)
-    oled.show()
 
 def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -362,7 +382,7 @@ def oled_updater():
             oled_scroll_status = 0
             last_status_content = status_content
 
-        draw_oled(baris1, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
+        safe_draw_oled(baris1, ap_label, ap_content, status_label, status_content, oled_scroll_ap, oled_scroll_status)
         oled_scroll_ap += 8
         oled_scroll_status += 20
         time.sleep(0.016)
