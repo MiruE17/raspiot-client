@@ -206,7 +206,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     draw.text((0, 0), ip, font=font, fill=255)
 
     # --- Baris 2: AP/SSID ---
-    ap_label_width = int(font.getlength(ap_label))
+    ap_label_width = int(font.getlength(ap_label)-2)
     ap_content_x = ap_label_width + 1
     draw.text((0, 11), ap_label, font=font, fill=255)
     ap_content_full = ap_content + " "
@@ -227,7 +227,7 @@ def draw_oled(ip, ap_label, ap_content, status_label, status_content, scroll_pos
     image.paste(ap_content_img, (ap_content_x, 11))
 
     # --- Baris 3: Status + log ---
-    status_label_width = int(font.getlength(status_label))
+    status_label_width = int(font.getlength(status_label)-2)
     status_content_x = status_label_width + 1
     draw.text((0, 22), status_label, font=font, fill=255)
     status_content_full = status_content + " "
@@ -307,15 +307,13 @@ def oled_updater():
         ip = "IP: " + get_ip()
         ssid, mode = get_nm_status()
         hostname = get_hostname()
-        if mode == "ap":
+        ip_addr = get_ip()
+        if ip_addr == "10.0.0.1":
             ap_label = "AP: "
             ap_content = f"{ssid}/{get_hotspot_password()}"
-        elif ssid:
+        else:
             ap_label = "AP/Hostname: "
             ap_content = f"{ssid}/{hostname}"
-        else:
-            ap_label = "AP: "
-            ap_content = "-"
         status_label = "Status: "
         status_app = globals().get("oled_status_app", "Standby")
         logline = get_last_journal_line()
